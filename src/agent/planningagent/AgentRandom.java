@@ -1,14 +1,12 @@
 package agent.planningagent;
 
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 import environnement.Action;
 import environnement.Etat;
 import environnement.MDP;
-import environnement.gridworld.ActionGridworld;
 /**
  * Cet agent choisit une action aleatoire parmi toutes les autorisees dans chaque etat
  * @author lmatignon

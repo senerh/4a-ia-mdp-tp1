@@ -9,6 +9,7 @@ import java.util.Random;
 
 import environnement.Action;
 import environnement.Etat;
+import environnement.IllegalActionException;
 import environnement.MDP;
 import environnement.gridworld.ActionGridworld;
 
@@ -25,77 +26,96 @@ public class ValueIterationAgent extends PlanningValueAgent{
 	 */
 	protected double gamma;
 	private Map<Etat, Double> V;
-
+	private Random random;
 
 	/**
-	 * 
 	 * @param gamma
 	 * @param mdp
 	 */
-	public ValueIterationAgent(double gamma,MDP mdp) {
+	public ValueIterationAgent(double gamma, MDP mdp) {
 		super(mdp);
 		this.gamma = gamma;
+		random = new Random(System.currentTimeMillis());
 		
 		V = new HashMap<Etat, Double>();
 		for (Etat etat : mdp.getEtatsAccessibles()) {
 			V.put(etat, 0.0);
 		}
-	
 	}
-	
-	
-	public ValueIterationAgent(MDP mdp) {
-		this(0.9,mdp);
 
+	public ValueIterationAgent(MDP mdp) {
+		this(0.9, mdp);
 	}
 	
-	/**
-	 * 
+	/** 
 	 * Mise a jour de V: effectue UNE iteration de value iteration 
 	 */
 	@Override
-	public void updateV(){
-		//delta est utilise pour detecter la convergence de l'algorithme
-		//lorsque l'on planifie jusqu'a convergence, on arrete les iterations lorsque
-		//delta < epsilon 
-		this.delta=0.0;
-		//*** VOTRE CODE
+	public void updateV() {
+		delta = 0.0;
 		
 		HashMap<Etat, Double> Vk = new HashMap<Etat, Double>();
 		
-		for (Entry<Etat, Double> entry : V.entrySet()) {
-			mdp.get
+		for (Etat etat : mdp.getEtatsAccessibles()) {
+			List<Action> listActions = mdp.getActionsPossibles(etat);
+			double max = 0;
+			for (Action action : listActions) {
+				Map<Etat, Double> listEtatsVoisins = null;
+				try {
+					listEtatsVoisins = mdp.getEtatTransitionProba(etat, action);
+				} catch (IllegalActionException e) {
+					e.printStackTrace();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				double somme = 0;
+				for (Entry<Etat, Double> entry : listEtatsVoisins.entrySet()) {
+					double t = entry.getValue();
+					double r = mdp.getRecompense(etat, action, entry.getKey());
+					double v = V.get(entry.getKey());
+					somme += t * (r + gamma  * v);
+				}
+				max = (somme > max) ? somme : max; 
+			}
+			Vk.put(etat, max);
+			double d = Math.abs(V.get(etat) - Vk.get(etat));
+			delta = (d > delta) ? d : delta;
 		}
 		
-	
-		
-		
-		// mise a jour vmax et vmin pour affichage du gradient de couleur:
-		//vmax est la valeur de max pour tout s de V
-		//vmin est la valeur de min pour tout s de V
-		// ...
-		
-		//******************* a laisser a la fin de la methode
+		V = Vk;
+		vmax = Double.MIN_VALUE;
+		vmin = Double.MAX_VALUE;
+		for (Double value : V.values()) {
+			vmax = (value > vmax) ? value : vmax; 
+			vmin = (value < vmin) ? value : vmin;
+		}
+
 		this.notifyObs();
 	}
-	
 	
 	/**
 	 * renvoi l'action executee par l'agent dans l'etat e 
 	 */
 	@Override
 	public Action getAction(Etat e) {
-		//*** VOTRE CODE
-		
-	
-		return null;
+		List<Action> listActions = getPolitique(e);
+		if (listActions.isEmpty()) {
+			return ActionGridworld.NONE;
+		} else if (listActions.size() == 1) {
+			return listActions.get(0);
+		} else {
+			return listActions.get(random.nextInt(listActions.size()));
+		}
 	}
+	
 	@Override
 	public double getValeur(Etat _e) {
-		//*** VOTRE CODE
-		
+		if (V.containsKey(_e)) {
+			return V.get(_e);
+		}
 		return 0.0;
 	}
+	
 	/**
 	 * renvoi la (les) action(s) de plus forte(s) valeur(s) dans l'etat e 
 	 * (plusieurs actions sont renvoyees si valeurs identiques, liste vide si aucune action n'est possible)
@@ -103,31 +123,50 @@ public class ValueIterationAgent extends PlanningValueAgent{
 	@Override
 	public List<Action> getPolitique(Etat _e) {
 		List<Action> l = new ArrayList<Action>();
-		//*** VOTRE CODE
+
+		List<Action> listActions = mdp.getActionsPossibles(_e);
 		
+		double max = 0;
+		for (Action action : listActions) {
+			Map<Etat, Double> listEtatsVoisins = null;
+			try {
+				listEtatsVoisins = mdp.getEtatTransitionProba(_e, action);
+			} catch (IllegalActionException e) {
+				e.printStackTrace();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			double somme = 0;
+			for (Entry<Etat, Double> entry : listEtatsVoisins.entrySet()) {
+				double t = entry.getValue();
+				double r = mdp.getRecompense(_e, action, entry.getKey());
+				double v = V.get(entry.getKey());
+				somme += t * (r + gamma  * v);
+			}
+			if (somme > max) {
+				l.clear();
+				max = somme;
+			}
+			if (somme == max) {
+				l.add(action);
+			}
+		}
 		
 		return l;
-		
 	}
 	
 	@Override
 	public void reset() {
 		super.reset();
-		//*** VOTRE CODE
-		
-		
-		
-		
-		
-		/*-----------------*/
+		V.clear();
+		for (Etat etat : mdp.getEtatsAccessibles()) {
+			V.put(etat, 0.0);
+		}
 		this.notifyObs();
-
 	}
-
 
 	public void setGamma(double arg0) {
 		this.gamma = arg0;
 	}
-
 	
 }
